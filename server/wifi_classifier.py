@@ -64,9 +64,9 @@ class WifiClassifier:
                 # for params, accuracy in svm_combinations:
                 #     print("Parameters:", params, "Accuracy:", accuracy)
 
-                pickle.dump(self.model, open("./models/best_wifi.sav", 'wb'))
+                pickle.dump(self.model, open("./models/best_wifi_2.sav", 'wb'))
             else:
-                self.model = pickle.load(open(filename, 'rb'))
+                self.model = pickle.load(open("./models/" + filename, 'rb'))
             self.model_trained = True
 
     def classify(self, sample):

@@ -16,5 +16,5 @@ min_frequency = 19500
 max_frequency = 20500
 
 
-top_k = 4
+top_k = 3
 acoustic_weight = 0.3
