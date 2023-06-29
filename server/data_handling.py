@@ -16,14 +16,22 @@ import constants
 import os
 import json
 from sorcery import dict_of
-from combined_classifier import WeightedAverage, TwoStep, wifi_top_k, wifi_top_k_test_accuracy, acoustic_top_k, acoustic_top_k_test_accuracy, wifi_top_k_to_string, acoustic_top_k_to_string
+from combined_classifier import DynamicEntropyModel, StackingModel, WeightedAverage, TwoStep,EntropyWeightModel, wifi_top_k, wifi_top_k_test_accuracy, acoustic_top_k, acoustic_top_k_test_accuracy, wifi_top_k_to_string, acoustic_top_k_to_string
  
 matplotlib.use('Agg')
+
 db = LocalDatabase()
 acoustic_model = AcousticClassifier()
 wifi_model = WifiClassifier()
+# wifi_consistent_model = WifiClassifier("consistency")
+# wifi_entropy_model = WifiClassifier("entropy")
+
 weighted_model = WeightedAverage(acoustic_model, wifi_model, [])
 two_step_model = TwoStep(acoustic_model, wifi_model, [])
+# weighted_model_consistency = WeightedAverage(acoustic_model, wifi_consistent_model, [])
+# two_step_model_consistency = TwoStep(acoustic_model, wifi_consistent_model, [])
+# weighted_model_entropy = WeightedAverage(acoustic_model, wifi_entropy_model, [])
+# two_step_model_entropy = TwoStep(acoustic_model, wifi_entropy_model, [])
 
 
 def unique(list1):
@@ -183,22 +191,66 @@ def create_wifi_training_set(wifi_list, building_label, room_label):
         count = 1 + count
 
 def test_classifiers(acoustic_test_set, acoustic_test_labels, wifi_test_set, wifi_test_labels, acoustic_training_dataset, wifi_training_dataset):
+    # cross_entropy_model = EntropyWeightModel(acoustic_model, wifi_model, acoustic_model.cross_entropy, wifi_model.cross_entropy, acoustic_model.get_int_to_label(), "cross_entropy")
+    stack_model = StackingModel(acoustic_model, wifi_model, acoustic_model.get_int_to_label())
+    # dynamic_entropy_model = DynamicEntropyModel(acoustic_model, wifi_model, acoustic_model.get_int_to_label(), len(acoustic_model.get_int_to_label()))
+    # dynamic_entropy_accuracy = dynamic_entropy_model.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
     wifi_accuracy = wifi_model.test_accuracy(wifi_test_set,wifi_test_labels)
     acoustic_accuracy = acoustic_model.test_accuracy(acoustic_test_set, acoustic_test_labels)
 
-    weighted_model.set_int_to_label(acoustic_model.get_int_to_label())
-    two_step_model.set_int_to_label(acoustic_model.get_int_to_label())
+    # weighted_model.set_int_to_label(acoustic_model.get_int_to_label())
+    # two_step_model.set_int_to_label(acoustic_model.get_int_to_label())
 
-    weighted_accuracy = weighted_model.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
-    two_step_accuracy = two_step_model.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
+
+    # cross_entropy_accuracy = cross_entropy_model.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
+
+    # weighted_accuracy = weighted_model.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
+    # two_step_accuracy = two_step_model.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
+    
+    stack_accuracy = stack_model.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
+
+
     wifi_top_k_accuracy = wifi_top_k_test_accuracy(wifi_model, constants.top_k, wifi_test_set, wifi_test_labels)
     acoustic_top_k_accuracy = acoustic_top_k_test_accuracy(acoustic_model, constants.top_k, acoustic_test_set, wifi_test_labels)
+    print("ACOUSTIC TRAINING SET SIZE " + str(len(acoustic_training_dataset[0])))
+    print("ACOUSTIC TEST SET SIZE " + str(len(acoustic_test_set)))
+    print("WIFI TRAINING SET SIZE " + str(len(wifi_training_dataset[0])))
+    print("WIFI TEST SET SIZE " + str(len(wifi_test_set)))
+
+
     print("WIFI MODEL ACCURACY: " + str(wifi_accuracy))
     print("ACOUSTIC MODEL ACCURACY: " + str(acoustic_accuracy))
-    print("WEIGHTED AVERAGE ACCURACY: " + str(weighted_accuracy))
-    print("TWO STEP LOCALIZATION ACCURACY: " + str(two_step_accuracy))
-    print("ACOUSTIC TOP K ACCURACY: " + str(acoustic_top_k_accuracy))
-    print("WIFI TOP K ACCURACY: " + str(wifi_top_k_accuracy))
+
+    # print("WEIGHTED AVERAGE ACCURACY: " + str(weighted_accuracy))
+    # print("TWO STEP LOCALIZATION ACCURACY: " + str(two_step_accuracy))
+    # print("STATIC ENTROPY ACCURACY: " + str(cross_entropy_accuracy))
+    # print("DYNAMIC ENTROPY ACCURACY: " + str(dynamic_entropy_accuracy))
+
+    print("stack: " + str(stack_accuracy))
+
+    # print("ACOUSTIC TOP K ACCURACY: " + str(acoustic_top_k_accuracy))
+    # print("WIFI TOP K ACCURACY: " + str(wifi_top_k_accuracy))
+
+    # EWM_model = EntropyWeightModel(acoustic_model, wifi_model, acoustic_model.EWM, wifi_model.EWM, acoustic_model.get_int_to_label(), "EWM")
+    # EWM_accuracy = EWM_model.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
+
+    # wifi_accuracy_consistent = wifi_consistent_model.test_accuracy(wifi_test_set,wifi_test_labels)
+    # wifi_accuracy_entropy = wifi_entropy_model.test_accuracy(wifi_test_set,wifi_test_labels)
+    # weighted_model_consistency.set_int_to_label(acoustic_model.get_int_to_label())
+    # two_step_model_consistency.set_int_to_label(acoustic_model.get_int_to_label())
+    # weighted_model_entropy.set_int_to_label(acoustic_model.get_int_to_label())
+    # two_step_model_entropy.set_int_to_label(acoustic_model.get_int_to_label())
+    # weighted_accuracy_consistency = weighted_model_consistency.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
+    # two_step_accuracy_consistency = two_step_model_consistency.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
+    # weighted_accuracy_entropy = weighted_model_entropy.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
+    # two_step_accuracy_entropy = two_step_model_entropy.train(acoustic_training_dataset, wifi_training_dataset, (acoustic_test_set, acoustic_test_labels), (wifi_test_set, wifi_test_labels))
+    # print("EWM: " + str(EWM_accuracy))
+    # # print("WIFI MODEL C ACCURACY: " + str(wifi_accuracy_consistent))
+    # # print("WIFI MODEL E ACCURACY: " + str(wifi_accuracy_entropy))
+    # print("WEIGHTED AVERAGE C ACCURACY: " + str(weighted_accuracy_consistency))
+    # print("WEIGHTED AVERAGE E ACCURACY: " + str(weighted_accuracy_entropy))
+    # print("TWO STEP LOCALIZATION C ACCURACY: " + str(two_step_accuracy_consistency))
+    # print("TWO STEP LOCALIZATION E ACCURACY: " + str(two_step_accuracy_entropy))
 
 def combine_dataset(wifi_set, wifi_labels, acoustic_set, acoustic_labels):
 
@@ -227,10 +279,10 @@ def combine_dataset(wifi_set, wifi_labels, acoustic_set, acoustic_labels):
 def get_combined_dataset():
     images, image_labels, acoustic_int_to_label = db.get_acoustic_training_set()
     wifis, wifi_labels, wifi_int_to_label = db.get_wifi_training_set()
-    acoustic_training_set, acoustic_temp_set, acoustic_training_labels , acoustic_temp_labels = train_test_split(images, image_labels, test_size=0.2, random_state=42)
-    wifi_training_set, wifi_test_set, wifi_training_labels, wifi_test_labels = train_test_split(wifis, wifi_labels, test_size=0.4, random_state=42)
+    acoustic_training_set, acoustic_temp_set, acoustic_training_labels , acoustic_temp_labels = train_test_split(images, image_labels, test_size=0.2, random_state=3)
+    wifi_training_set, wifi_test_set, wifi_training_labels, wifi_test_labels = train_test_split(wifis, wifi_labels, test_size=0.5, random_state=3)
 
-    acoustic_validation_set, acoustic_test_set, acoustic_validation_labels, acoustic_test_labels = train_test_split(acoustic_temp_set, acoustic_temp_labels, test_size=0.5, random_state=42)
+    acoustic_validation_set, acoustic_test_set, acoustic_validation_labels, acoustic_test_labels = train_test_split(acoustic_temp_set, acoustic_temp_labels, test_size=0.5, random_state=3)
 
     new_wifi_training_set, new_wifi_training_labels, new_acoustic_training_set, new_acoustic_training_labels = combine_dataset(wifi_training_set, wifi_training_labels, acoustic_training_set, acoustic_training_labels)
     new_wifi_test_set, new_wifi_test_labels, new_acoustic_test_set, new_acoustic_test_labels = combine_dataset(wifi_test_set, wifi_test_labels, acoustic_test_set, acoustic_test_labels)
@@ -246,43 +298,14 @@ def train_classifiers(test_split=0.2):
     room_amount = db.get_room_amount()
     acoustic_dataset, wifi_dataset, acoustic_int_to_label, wifi_int_to_label, acoustic_training_dataset, wifi_training_dataset = get_combined_dataset()
 
-    acoustic_model.train(acoustic_dataset, acoustic_int_to_label, room_amount, "best_acoustic.h5") # 
-    wifi_model.train(wifi_dataset, wifi_int_to_label, room_amount, "./models/best_wifi.sav") # 
+    acoustic_model.train(acoustic_dataset, acoustic_int_to_label, room_amount, "best_acoustic_4.h5") #
+    wifi_model.train(wifi_dataset, wifi_int_to_label, room_amount) # , 
 
     test_classifiers(acoustic_dataset[4], acoustic_dataset[5], wifi_dataset[2], wifi_dataset[3], acoustic_training_dataset, wifi_training_dataset)
-
-def cross_corelation(arr, filename=None):
-
-    samples = (np.sin(2 * np.pi * np.arange(params.duration * params.sample_rate) * params.frequency / params.sample_rate)).astype(np.float32)
-
-    corr = signal.correlate(arr, samples, mode='same', method='fft')
-    size = len(corr)
-
-    started = False
-    chirp_start = []
-    chirp_end = []
-    for i in range(size):
-        if abs(corr[i]) > 100000 and not started:
-            started = True
-            chirp_start.append(i)
-        if abs(corr[i]) < 100000 and started:
-            chirp_end.append(i)
-            started = False
-
-    if len(chirp_start) == 0 or len(chirp_end) == 0:
-        return 0, 0
-
-    
-    calculated_chirp_duration = (chirp_end[len(chirp_end) - 1] - chirp_start[0])
-    chirp_midle = chirp_start[0] + calculated_chirp_duration / 2
-
-    if filename is not None:
-        plt.plot(np.arange(size) / params.sample_rate, corr)
-        plt.savefig(filename)
-        plt.clf()   
-
-
-    return chirp_midle, calculated_chirp_duration
+   
+   
+    # wifi_consistent_model.train(wifi_dataset, wifi_int_to_label, room_amount, "best_wifi_3.sav") # 
+    # wifi_entropy_model.train(wifi_dataset, wifi_int_to_label, room_amount, "best_wifi_3.sav") # 
 
 if __name__ == "__main__":
 
